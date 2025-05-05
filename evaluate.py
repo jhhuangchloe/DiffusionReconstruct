@@ -167,7 +167,7 @@ def main(args):
         else:
             print('Total number of observation points: ', mask_kwargs['ratio']*tmp_dim**2, ' Perceage of known points: ', mask_kwargs['ratio'])
 
-        err_RMSE, err_nRMSE, err_CSV = get_metrics_2D(reduced_val_dataset, pipeline=pipeline,
+        err_RMSE, err_nRMSE, err_CSV, err_L2relative = get_metrics_2D(reduced_val_dataset, pipeline=pipeline,
                                                     vt = vt,
                                                     vt_model = unet if use_vt else None,
                                                     batch_size = args.batch_size,
@@ -200,25 +200,27 @@ def main(args):
         if os.path.exists(csv_filename):
             df_existing = pd.read_csv(csv_filename, index_col=0)
         else:
-            df_existing = pd.DataFrame(columns=['RMSE', 'nRMSE', 'CSV'])
+            df_existing = pd.DataFrame(columns=['RMSE', 'nRMSE', 'CSV', 'L2relative'])
             df_existing.index.name = 'Index'
 
         if "darcy" in args.subfolder:
             # For darcy we only save the permeability field
             df_new = pd.DataFrame({'RMSE': [err_RMSE.cpu().numpy()[0]],
                                 'nRMSE': [err_nRMSE.cpu().numpy()[0]],
-                                'CSV': [err_CSV.cpu().numpy()[0]]},
+                                'CSV': [err_CSV.cpu().numpy()[0]],
+                                'L2relative': [err_L2relative.cpu().numpy()[0]]},
                                 index=[index_value])
         else:
             df_new = pd.DataFrame({'RMSE': [err_RMSE.cpu().numpy()], 
                                 'nRMSE': [err_nRMSE.cpu().numpy()],
-                                'CSV': [err_CSV.cpu().numpy()]},
+                                'CSV': [err_CSV.cpu().numpy()],
+                                'L2relative': [err_L2relative.cpu().numpy()]},
                                 index=[index_value])
 
         df_combined = pd.concat([df_existing, df_new])
         df_combined.to_csv(csv_filename)
 
-        logger.info(f'RMSE: {err_RMSE.cpu().numpy()}, nRMSE: {err_nRMSE.cpu().numpy()}, CSV: {err_CSV.cpu().numpy()}')
+        logger.info(f'RMSE: {err_RMSE.cpu().numpy()}, nRMSE: {err_nRMSE.cpu().numpy()}, CSV: {err_CSV.cpu().numpy()}, L2relative: {err_L2relative.cpu().numpy()}')
 
 if __name__ == "__main__":
     args = parse_args()

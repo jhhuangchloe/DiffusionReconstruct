@@ -42,6 +42,8 @@ def metric_func_2D(y_pred, y_true, mask=None, channel_mean=True):
     err_RMSE = torch.mean(err_mean, axis=0) # -> (C)
     err_nRMSE = torch.mean(err_mean / nrm, dim=0) # -> (C)
     err_CSV = torch.sqrt(csv_error) # (C)
+    err_L2relative = torch.norm(y_pred - y_true, p=2, dim=[-2, -1]) / torch.norm(y_true, p=2, dim=[-2, -1]) # (B, C)
+    err_L2relative = torch.mean(err_L2relative, dim=0) # -> (C)
     if mask is not None:
         err_CSV /= torch.mean(torch.sum(unknown_mask, dim=[-2, -1]), dim=0)
     else:
@@ -53,7 +55,7 @@ def metric_func_2D(y_pred, y_true, mask=None, channel_mean=True):
         err_nRMSE = torch.mean(err_nRMSE, axis=0)
         err_CSV = torch.mean(err_CSV, axis=0)
     
-    return err_RMSE, err_nRMSE, err_CSV
+    return err_RMSE, err_nRMSE, err_CSV, err_L2relative
 
 @torch.no_grad()
 def get_metrics_2D(val_dataset, pipeline=None, vt=None, vt_model=None, batch_size=64, ensemble_size=25,
@@ -168,7 +170,7 @@ def get_metrics_2D(val_dataset, pipeline=None, vt=None, vt_model=None, batch_siz
             y_pred = torch.ones_like(y_true) * repeat(torch.tensor(inverse_transform_args['mean'], device=device), 'c -> b c 1 1', b=num_sample)
             
 
-        _err_RMSE, _err_nRMSE, _err_CSV = metric_func_2D(y_pred, y_true, 
+        _err_RMSE, _err_nRMSE, _err_CSV, _err_l2relative = metric_func_2D(y_pred, y_true, 
                                                          mask=scatter_mask if mode != 'mean' else None,
                                                          channel_mean=channel_mean)
 
@@ -176,14 +178,16 @@ def get_metrics_2D(val_dataset, pipeline=None, vt=None, vt_model=None, batch_siz
             err_RMSE = _err_RMSE * num_sample
             err_nRMSE = _err_nRMSE * num_sample
             err_CSV = _err_CSV * num_sample
+            err_L2relative = _err_l2relative * num_sample
         else:
             err_RMSE += _err_RMSE * num_sample
             err_nRMSE += _err_nRMSE * num_sample
             err_CSV += _err_CSV * num_sample
+            err_L2relative += _err_l2relative * num_sample
 
         count += num_sample
 
         if verbose:
-            print(f'RMSE: {err_RMSE / count}, nRMSE: {err_nRMSE / count}, CSV: {err_CSV / count}')
+            print(f'RMSE: {err_RMSE / count}, nRMSE: {err_nRMSE / count}, CSV: {err_CSV / count}, L2relative: {err_L2relative / count}')
     
-    return err_RMSE / count, err_nRMSE / count, err_CSV / count
+    return err_RMSE / count, err_nRMSE / count, err_CSV / count, err_L2relative / count

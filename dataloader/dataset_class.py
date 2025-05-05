@@ -209,5 +209,9 @@ def pdedata2dataloader(data_dir, batch_size=32, num_workers=1, split_ratios=(0.7
                                 })
         full_dataset = XarrayDataset2D(xarray, transform=transform, transform_args=transform_args, load_in_memory=load_in_memory)
         return dataset2dataloader(full_dataset, batch_size, num_workers, split_ratios=split_ratios, random_dataset=False, generator=generator, return_dataset=return_dataset)
+    elif data_name == 'wave.Layer' or 'wave.NS' or 'wave.Shu':
+        full_dataset = np.load(data_dir)
+        return npy2dataloader(full_dataset, batch_size, num_workers, split_ratios=split_ratios, transform=transform, transform_args=transform_args,
+                              rearrange_args=rearrange_args, random_dataset=False, generator=generator, return_dataset=return_dataset)
     else:
         raise NotImplementedError(f'Dataset: {data_name} not implemented.')
